@@ -3,80 +3,83 @@ import Data.List
 data Import = Import Package
 data Package = String
 data Visibility = Public | Private
-data JavaType = JavaInt (Maybe Int) | JavaBool (Maybe Bool) | JavaString (Maybe String) deriving (Eq)
+data TType = TInt (Maybe Int) | TBool (Maybe Bool) | TString (Maybe String) deriving (Eq)
 type Variable = String
-data VariableDeclaration = VariableDeclaration (Variable, JavaType) deriving (Show, Eq)
-data Function = Function { functionVisibility :: Visibility, functionName :: String, functionSignature :: JavaSignature, functionBody :: [JavaExpression] } deriving Show
-data JavaSignature = JavaSignature { javaSignatureInputs :: [VariableDeclaration], javaSignatureOutput :: VariableDeclaration } deriving (Show, Eq)
-type JavaExpression = String
+data VariableDeclaration = Dcl (Variable, TType) deriving (Show, Eq)
+data Function = Function { functionVisibility :: Visibility, functionName :: String, functionSignature :: Signature, functionBody :: [Expression] } deriving Show
+data Signature = Signature { javaSignatureInputs :: [VariableDeclaration], javaSignatureOutput :: VariableDeclaration } deriving (Show, Eq)
+type Expression = String
 
 -- show instances
 instance Show Visibility where
   show Public = "public"
   show Private = "private"
 
-instance Show JavaType where
-  show (JavaInt _) = "int"
-  show (JavaBool _) = "boolean"
-  show (JavaString _) = "String"
+instance Show TType where
+  show (TInt _) = "int"
+  show (TBool _) = "boolean"
+  show (TString _) = "String"
 
--- Java template code 
-varX :: VariableDeclaration
-varX = VariableDeclaration ("x", JavaInt $ Just 3)
+-- T template code 
+x :: VariableDeclaration
+x = Dcl ("x", TInt $ Just 3)
 
-varY :: VariableDeclaration
-varY = VariableDeclaration ("y", JavaInt $ Just 2)
+y :: VariableDeclaration
+y = Dcl ("y", TInt $ Just 2)
 
-varZ :: VariableDeclaration
-varZ = VariableDeclaration ("z", JavaBool Nothing)
+z :: VariableDeclaration
+z = Dcl ("z", TBool Nothing)
 
 bigger :: Function
-bigger = Function Public "bigger" (JavaSignature [varX, varY] varZ) 
-     [rjt varZ ++ " " ++ rjv varZ ++ " = " ++ rjv varX ++ " < " ++ rjv varY]
+bigger = Function Public "bigger" (Signature [x, y] z) 
+     [jt z ++ " " ++ jn z ++ " = " ++ jn x ++ " < " ++ jn y]
 
 -- to java functions
-renderFunctionDefinition :: Function -> String
-renderFunctionDefinition (Function v n s b) = show v ++ " " ++ javaSignatureOutputType s ++ " " ++ n ++ renderSignature s ++ "{" ++ foldr ((\a b -> a ++ ";" ++ b) . renderExpression) "" b ++ " return " ++ javaSignatureOutputVariable s ++  ";};"
+jFunctionDefinition :: Function -> String
+jFunctionDefinition (Function v n s b) = show v ++ " " ++ jOutputType s ++ " " ++ n ++ jSignature s ++ "{" ++ foldr ((\a b -> a ++ ";" ++ b) . jExpression) "" b ++ " return " ++ jOutputVariable s ++  ";};"
 
-renderFunctionCall :: Function -> [VariableDeclaration] -> Maybe String
-renderFunctionCall f vs 
+jFunctionCall :: Function -> [VariableDeclaration] -> Maybe String
+jFunctionCall f vs 
     | vs == javaSignatureInputs (functionSignature f) = Just $ 
-                                                          functionName f ++ "(" ++ intercalate ", " (map (\x -> rje x) vs) ++ ")"
+                                                          functionName f ++ "(" ++ intercalate ", " (map (\x -> je x) vs) ++ ")"
     | otherwise = Nothing
 
-renderSignature :: JavaSignature -> String 
-renderSignature (JavaSignature is _) = "(" ++ intercalate ", " (map renderVariableDeclaration is) ++ ")"
+jSignature :: Signature -> String 
+jSignature (Signature is _) = "(" ++ intercalate ", " (map jVariableDeclaration is) ++ ")"
 
-renderVariableDeclaration :: VariableDeclaration -> String
-renderVariableDeclaration (VariableDeclaration (v, t)) = show t ++ " " ++ v
+jVariableDeclaration :: VariableDeclaration -> String
+jVariableDeclaration (Dcl (v, t)) = show t ++ " " ++ v
 
-rje :: VariableDeclaration -> String 
-rje (VariableDeclaration (_, t)) = eval t
-                                     where eval (JavaInt (Just i)) = show i
-                                           eval (JavaBool (Just b)) = show b
-                                           eval (JavaString (Just s)) = s
+--evaluate variable
+je :: VariableDeclaration -> String 
+je (Dcl (_, t)) = eval t
+                                     where eval (TInt (Just i)) = show i
+                                           eval (TBool (Just b)) = show b
+                                           eval (TString (Just s)) = s
                                            eval _ = "ERROR: Could not evaluate variable."
 
-rjv :: VariableDeclaration -> String
-rjv (VariableDeclaration (v, _)) = v
+--variable name
+jn :: VariableDeclaration -> String
+jn (Dcl (v, _)) = v
 
-rjt :: VariableDeclaration -> String
-rjt (VariableDeclaration (_, t)) = show t
+--variable type
+jt :: VariableDeclaration -> String
+jt (Dcl (_, t)) = show t
 
-renderExpression :: JavaExpression -> String
-renderExpression e = e 
+jExpression :: Expression -> String
+jExpression e = e 
 
-javaSignatureOutputType :: JavaSignature -> String
-javaSignatureOutputType (JavaSignature _ (VariableDeclaration (vn, vt))) = show vt
+jOutputType :: Signature -> String
+jOutputType (Signature _ (Dcl (vn, vt))) = show vt
 
-javaSignatureOutputVariable :: JavaSignature -> String
-javaSignatureOutputVariable (JavaSignature _ (VariableDeclaration (vn, _))) = vn
+jOutputVariable :: Signature -> String
+jOutputVariable (Signature _ (Dcl (vn, _))) = vn
 
 -- main
 main = do
-    putStrLn $ renderFunctionDefinition bigger
-    maybePrint $ renderFunctionCall bigger [varX, varY]
-    maybePrint $ renderFunctionCall bigger [varX]
+    putStrLn $ jFunctionDefinition bigger
+    maybePrint $ jFunctionCall bigger [x, y]
+    maybePrint $ jFunctionCall bigger [x]
         where maybePrint (Just s) = putStrLn s
               maybePrint Nothing = putStrLn "ERROR: could not assign variables to function. Did you provide variables which match the signature?"
                   
