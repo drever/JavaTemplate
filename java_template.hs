@@ -3,7 +3,7 @@ import Data.List
 data Import = Import Package
 data Package = String
 data Visibility = Public | Private
-data JavaType = JavaInt | JavaBool | JavaString deriving (Eq)
+data JavaType = JavaInt (Maybe Int) | JavaBool (Maybe Bool) | JavaString (Maybe String) deriving (Eq)
 type Variable = String
 data VariableDeclaration = VariableDeclaration (Variable, JavaType) deriving (Show, Eq)
 data Function = Function { functionVisibility :: Visibility, functionName :: String, functionSignature :: JavaSignature, functionBody :: [JavaExpression] } deriving Show
@@ -16,19 +16,19 @@ instance Show Visibility where
   show Private = "private"
 
 instance Show JavaType where
-  show JavaInt = "int"
-  show JavaBool = "boolean"
-  show JavaString = "String"
+  show (JavaInt _) = "int"
+  show (JavaBool _) = "boolean"
+  show (JavaString _) = "String"
 
 -- Java template code 
 varX :: VariableDeclaration
-varX = VariableDeclaration ("x", JavaInt)
+varX = VariableDeclaration ("x", JavaInt $ Just 3)
 
 varY :: VariableDeclaration
-varY = VariableDeclaration ("y", JavaInt)
+varY = VariableDeclaration ("y", JavaInt $ Just 2)
 
 varZ :: VariableDeclaration
-varZ = VariableDeclaration ("z", JavaBool)
+varZ = VariableDeclaration ("z", JavaBool Nothing)
 
 bigger :: Function
 bigger = Function Public "bigger" (JavaSignature [varX, varY] varZ) 
@@ -40,7 +40,8 @@ renderFunctionDefinition (Function v n s b) = show v ++ " " ++ javaSignatureOutp
 
 renderFunctionCall :: Function -> [VariableDeclaration] -> Maybe String
 renderFunctionCall f vs 
-    | vs == javaSignatureInputs (functionSignature f) = Just "TBD, implement variable declaration to variable assignment."
+    | vs == javaSignatureInputs (functionSignature f) = Just $ 
+                                                          functionName f ++ "(" ++ intercalate ", " (map (\x -> rje x) vs) ++ ")"
     | otherwise = Nothing
 
 renderSignature :: JavaSignature -> String 
@@ -49,11 +50,19 @@ renderSignature (JavaSignature is _) = "(" ++ intercalate ", " (map renderVariab
 renderVariableDeclaration :: VariableDeclaration -> String
 renderVariableDeclaration (VariableDeclaration (v, t)) = show t ++ " " ++ v
 
+rje :: VariableDeclaration -> String 
+rje (VariableDeclaration (_, t)) = eval t
+                                     where eval (JavaInt (Just i)) = show i
+                                           eval (JavaBool (Just b)) = show b
+                                           eval (JavaString (Just s)) = s
+                                           eval _ = "ERROR: Could not evaluate variable."
+
 rjv :: VariableDeclaration -> String
 rjv (VariableDeclaration (v, _)) = v
 
 rjt :: VariableDeclaration -> String
 rjt (VariableDeclaration (_, t)) = show t
+
 renderExpression :: JavaExpression -> String
 renderExpression e = e 
 
